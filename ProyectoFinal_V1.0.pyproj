@@ -26,7 +26,6 @@
     <Compile Include="fallas.py" />
     <Compile Include="gestores.py" />
     <Compile Include="interfaz.py" />
-    <Compile Include="main2.py" />
     <Compile Include="partes.py" />
     <Compile Include="sensores.py" />
     <Compile Include="viento.py" />
