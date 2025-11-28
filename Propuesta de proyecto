@@ -1,0 +1,104 @@
+# Propuesta Inicial de Proyecto 
+
+**Carrera:** Ing. Mecatronica  
+**Materia:** Programacion Superior  
+**Periodo:** Segundo Parcial / Proyecto Final  
+**Estudiante(s):** *Andre Robert Soto Nogales*  
+**Fecha de entrega:** *2025-11-28*  
+
+---
+
+## 1. Datos Generales del Proyecto
+
+| Campo | Descripción |
+|--------|-------------|
+| **Nombre del proyecto:** | *SCADA de un parque eolico* |
+| **Tipo de aplicación:** | ☑ Escritorio ☐ Web ☐ Móvil ☐ Otro: __________ |
+| **Lenguaje / entorno de desarrollo:** | *Python* |
+| **Repositorio Git (opcional):** | https://github.com/ARSN69UCB/ProyectoFinal_Programacion_Superior |
+| **Uso de Inteligencia Artificial:** | ☐ No ☑ Sí (describir a continuación) |
+
+**Si usas IA, explica brevemente cómo y en qué etapa contribuye:**  
+ Se utilizará IA para las validaciones y correcciones de logica dentro de las funciones de las clases. Ademas de la elaboracion de una interfaz grafica.
+
+---
+
+## 2. Descripción del Proyecto
+
+### Resumen breve
+Se busca diseñar un algoritmo que simule la operacion de un parque eolico con aerogeneradores de gran escala, asegurandose que los WT (Wind Turbine) operen de forma segura de manera independiente. Ademas de que un usuario sea capaz de realizar operaciones a los generadores a travez del sistema.
+
+### Objetivos principales
+1.  Monitorear datos y fallas aerogeneradores en tiempo 
+real.
+2.  Simulacion de vientos variables.
+3. Control automatico y manual de los aerogeneradores.
+
+---
+
+## 3. Diseño Técnico y Aplicación de POO
+
+### Principios de POO aplicados
+Marca los que planeas usar:
+ -[✔] Encapsulamiento (atributos privados y métodos públicos)
+ -[✔] Uso de constructores
+ -[✔] Herencia
+ -[✔] Polimorfismo
+ -[✔] Interfaces o clases abstractas
+
+### Clases estimadas
+- **Cantidad inicial de clases:** 10  
+- **Ejemplo de posibles clases:** Falla, ParqueEolico, Controlador, Aerogenerador, Sensor. 
+
+
+### Persistencia de datos
+-[✔] Archivos locales  
+-[ ] Base de datos  
+ -[ ] En memoria (temporal)  
+ -[ ] Otro: __________
+
+---
+
+## 4. Funcionalidades Principales
+
+| Nº | Nombre de la funcionalidad | Descripción breve | Estado actual |
+|----|-----------------------------|-------------------|----------------|
+| 1 |Interfaz Grafica (GUI) |Panel de control visual en tiempo real de las turbinas (Tkinter).| ☑ Planeada ☐ En desarrollo |
+| 2 |Sistema de Seguridad |Bloqueos automaticos por fallas criticas o viento extremo (mayor a 25 m/s). | ☑ Planeada ☐ En desarrollo |
+| 3 |Curvas de Potencia |Calculo matematico de generacion electrica. | ☑ Planeada  ☐ En desarrollo |
+| 4 |Persistencia Temporal |Graficos de historial de potencia para cada unidad. | ☑ Planeada  ☐ En desarrollo |
+| 5 |Escalabilidad |Posibilidad de agregar nuevos aerogeneradores dinamicamente. | ☑ Planeada  ☐ En desarrollo |
+
+
+---
+
+## 5. Compromiso del Estudiante
+
+Declaro que:
+- Entiendo los criterios de evaluación establecidos en las rúbricas.
+- Presentaré una demostración funcional del proyecto.
+- Defenderé el código que yo mismo implementé y explicaré las clases y métodos principales.
+- Si usé herramientas de IA, comprendo su funcionamiento y las adapté al contexto del proyecto.
+
+**Firma (nombre completo):** Andre Robert Soto Nogales  
+
+---
+
+## 6. Validación del Docente *(completa el profesor)*
+
+| Campo | Detalle |
+|--------|---------|
+| **Visto bueno del docente:** | ☐ Aprobado para desarrollar ☐ Requiere ajustes ☐ Rechazado |
+| **Comentarios / Observaciones:** |  |
+| **Firma docente:** |  |
+| **Fecha de revisión:** |  |
+
+---
+
+> **Instrucciones para entrega:**
+
+> - Completa todas las secciones antes de tu presentación inicial.  
+> - No borres las casillas ni el formato para garantizar uniformidad del curso.  
+> - El docente revisará y aprobará esta propuesta antes del desarrollo completo.
+
+---
