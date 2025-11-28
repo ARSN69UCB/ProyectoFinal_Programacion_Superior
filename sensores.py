@@ -1,3 +1,4 @@
+#sensores.py simula el mundo fisico
 import random
 
 class Sensor:
@@ -6,10 +7,10 @@ class Sensor:
         self.ubicacion = ubicacion 
         self._valor = 0
 
-    def leer_valor(self):
+    def leer_valor(self): #Polimorfismo
         raise NotImplementedError("Debe implementarse en subclase.")
 
-    def __str__(self):
+    def __str__(self): #Métodos Mágicos (Dunder Methods) define como se "ve" tu objeto cuando lo conviertes a texto
         return f"{self.__class__.__name__} @ {self.ubicacion}: {self._valor}"
 
 class SensorVelocidadViento(Sensor):

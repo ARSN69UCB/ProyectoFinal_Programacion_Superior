@@ -1,13 +1,9 @@
-# ### PORTABILIDAD ###
-# Usamos 'tkinter', que viene instalado por defecto en Python en Windows, Mac y Linux.
-# No usamos librerias especificas del sistema operativo (como win32api).
-# Esto garantiza que el codigo corra en cualquier maquina con Python.
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import math
-
-from aerogenerador import AG_BajaPotencia, AG_AltaPotencia
-from gestores import AlarmManager
+from controlador import SimuladorController
+from alarmas import AlarmManager
+from aerogenerador import AG_AltaPotencia, AG_BajaPotencia
 from fallas import FallaMecanica
 
 # --- CONFIGURACION DE COLORES ---
@@ -39,6 +35,44 @@ class Estilos:
         style.map("Danger.TButton", background=[('active', '#d32f2f')])
         style.configure("Success.TButton", background=COLOR_SUCCESS)
 
+# --- VENTANA DE LOGIN (RECUPERADA) ---
+class LoginWindow(tk.Toplevel):
+    def __init__(self, parent, on_success):
+        super().__init__(parent)
+        self.title("Acceso Seguro - SCADA")
+        self.geometry("300x250")
+        self.configure(bg=COLOR_BG)
+        self.resizable(False, False)
+        self.on_success = on_success
+        
+        # Centrar
+        x = (self.winfo_screenwidth() // 2) - 150
+        y = (self.winfo_screenheight() // 2) - 125
+        self.geometry(f"+{x}+{y}")
+
+        ttk.Label(self, text="INICIAR SESION", style="Title.TLabel").pack(pady=20)
+        
+        ttk.Label(self, text="Usuario:", background=COLOR_BG, foreground=COLOR_TEXT).pack(anchor="w", padx=20)
+        self.entry_user = ttk.Entry(self)
+        self.entry_user.pack(fill="x", padx=20, pady=5)
+        
+        ttk.Label(self, text="Contrasena:", background=COLOR_BG, foreground=COLOR_TEXT).pack(anchor="w", padx=20)
+        self.entry_pass = ttk.Entry(self, show="*")
+        self.entry_pass.pack(fill="x", padx=20, pady=5)
+        
+        ttk.Button(self, text="ACCEDER", command=self.verificar).pack(pady=20, fill="x", padx=20)
+
+        # Protocolo para cerrar app si cierran login
+        self.protocol("WM_DELETE_WINDOW", parent.destroy)
+
+    def verificar(self):
+        # Credenciales Hardcodeadas (KISS)
+        if self.entry_user.get() == "admin" and self.entry_pass.get() == "1234":
+            self.destroy()
+            self.on_success()
+        else:
+            messagebox.showerror("Error", "Credenciales incorrectas")
+
 # --- VENTANA POPUP: DETALLES Y GRAFICO ---
 class VentanaDetalle(tk.Toplevel):
     def __init__(self, parent, aerogenerador):
@@ -49,12 +83,10 @@ class VentanaDetalle(tk.Toplevel):
         self.configure(bg=COLOR_BG)
         self.resizable(False, False)
         
-        # 1. Grafico de Potencia (Canvas)
         ttk.Label(self, text="Curva de Generacion (Tiempo Real)", style="TLabel", font=("Segoe UI", 12)).pack(pady=10)
         self.canvas_graph = tk.Canvas(self, width=500, height=200, bg="black", highlightthickness=1, highlightbackground=COLOR_PANEL)
         self.canvas_graph.pack()
         
-        # 2. Panel de Fallas
         ttk.Label(self, text="Catalogo de Fallas / Mantenimiento", style="TLabel", font=("Segoe UI", 12)).pack(pady=(20,5))
         
         frame_fallas = ttk.Frame(self, style="TFrame")
@@ -67,7 +99,6 @@ class VentanaDetalle(tk.Toplevel):
         scrollbar.pack(side="right", fill="y")
         self.listbox_fallas.config(yscrollcommand=scrollbar.set)
         
-        # 3. Boton Correccion
         btn_corregir = ttk.Button(self, text="CORREGIR FALLAS Y REINICIAR SISTEMA", style="Success.TButton", command=self.accion_corregir)
         btn_corregir.pack(pady=20, fill="x", padx=50)
 
@@ -78,17 +109,14 @@ class VentanaDetalle(tk.Toplevel):
         data = self.ag.historial_potencia
         w = 500
         h = 200
-        max_val = 2600 # Max kW esperado
+        max_val = 2600 
         step = w / len(data)
         
-        # Dibujar cuadricula simple
         self.canvas_graph.create_line(0, h/2, w, h/2, fill="#333", dash=(2,2))
 
-        # Dibujar linea
         points = []
         for i, val in enumerate(data):
             x = i * step
-            # Normalizar altura: Si val=0 -> y=200. Si val=2500 -> y=0
             y = h - (val / max_val * h)
             points.append(x)
             points.append(y)
@@ -102,14 +130,14 @@ class VentanaDetalle(tk.Toplevel):
         for parte in self.ag.partes:
             for falla in parte.fallas_activas:
                 encontradas = True
-                estado_txt = "[ACTIVO]" if self.ag.bloqueo_critico else "[HISTORICO]"
+                estado_txt = "[ACTIVO]" if self.ag.es_bloqueo_critico() else "[HISTORICO]"
                 self.listbox_fallas.insert(tk.END, f"{estado_txt} {parte.nombre}: {falla.mensaje}")
         
         if not encontradas:
             self.listbox_fallas.insert(tk.END, "Sin fallas registradas. Sistema nominal.")
 
     def accion_corregir(self):
-        self.ag.corregir_fallas()
+        self.ag.realizar_mantenimiento()
         messagebox.showinfo("Mantenimiento", "Fallas corregidas. El aerogenerador ha sido desbloqueado.\nPuede ponerlo en marcha nuevamente.")
         self.actualizar_lista_fallas()
 
@@ -119,19 +147,12 @@ class VentanaDetalle(tk.Toplevel):
             self.actualizar_lista_fallas()
             self.after(1000, self.actualizar_popup)
 
-
 # --- WIDGET AEROGENERADOR ---
 class WidgetAerogenerador(ttk.Frame):
-    # ### MODULARIDAD ###
-    # Este widget es un modulo independiente. Contiene su propia logica visual
-    # (dibujarse, animarse, mostrar datos).
-    # La ventana principal (DashboardApp) no sabe como se dibuja un aero,
-    # solo instancia este modulo. Esto reduce el acoplamiento.
     def __init__(self, parent, aerogenerador):
         super().__init__(parent, style="Card.TFrame", padding=10)
         self.ag = aerogenerador
         
-        # Encabezado
         self.lbl_titulo = ttk.Label(self, text=f"AG-{self.ag.id_a}", style="Header.TLabel")
         self.lbl_titulo.pack(anchor="w")
         
@@ -139,12 +160,10 @@ class WidgetAerogenerador(ttk.Frame):
         self.lbl_tipo = ttk.Label(self, text=tipo, style="Card.TLabel", font=("Segoe UI", 8))
         self.lbl_tipo.pack(anchor="w")
 
-        # Canvas
         self.canvas = tk.Canvas(self, width=150, height=150, bg=COLOR_PANEL, highlightthickness=0)
         self.canvas.pack(pady=10)
         self.dibujar_base()
 
-        # Datos
         self.frame_datos = ttk.Frame(self, style="Card.TFrame")
         self.frame_datos.pack(fill="x", pady=5)
         
@@ -154,14 +173,12 @@ class WidgetAerogenerador(ttk.Frame):
         self._crear_fila_dato("Estado:", self.var_estado)
         self._crear_fila_dato("Potencia:", self.var_potencia)
 
-        # Botones Control
         self.frame_btns = ttk.Frame(self, style="Card.TFrame")
         self.frame_btns.pack(fill="x", pady=5)
         
         ttk.Button(self.frame_btns, text="MARCHA", command=self.accion_marcha).pack(side="left", fill="x", expand=True, padx=2)
         ttk.Button(self.frame_btns, text="PARAR", style="Danger.TButton", command=self.accion_parada).pack(side="right", fill="x", expand=True, padx=2)
         
-        # Boton Status
         ttk.Button(self, text="STATUS / GRAFICO", command=self.abrir_detalles).pack(fill="x", pady=(5,0))
 
         self.angulo = 0
@@ -177,24 +194,22 @@ class WidgetAerogenerador(ttk.Frame):
         self.canvas.create_oval(65, 70, 85, 90, fill="#ecf0f1", outline="")
 
     def actualizar_animacion(self):
-        # ### SIMPLICIDAD (YAGNI - You Aren't Gonna Need It) ###
-        # Podriamos haber importado imagenes .png o modelos 3D.
-        # Pero aplicamos YAGNI: No lo necesitamos. Con dibujar lineas y circulos
-        # nativos (Canvas) logramos el objetivo sin dependencias externas ni archivos extra.
         self.canvas.delete("palas")
-        color_palas = "#ecf0f1" # Blanco (Generando)
+        color_palas = "#ecf0f1" 
         
-        if "stop" in self.ag._estado: 
-            color_palas = "#c0392b" # Rojo (Parado)
-        elif "espera" in self.ag._estado:
-            color_palas = "#9b59b6" # Violeta (Esperando viento)
-        elif self.ag._estado == "pausado":
-            color_palas = "#f39c12" # Naranja
+        estado_actual = self.ag.get_estado()
+        
+        if "stop" in estado_actual: 
+            color_palas = "#c0392b" 
+        elif "espera" in estado_actual:
+            color_palas = "#9b59b6" 
+        elif estado_actual == "pausado":
+            color_palas = "#f39c12" 
         
         cx, cy = 75, 80
         radio = 60
         
-        if self.ag._estado == "generando":
+        if estado_actual == "generando":
             self.angulo = (self.angulo + 20) % 360
         
         for i in range(3):
@@ -204,24 +219,23 @@ class WidgetAerogenerador(ttk.Frame):
             self.canvas.create_line(cx, cy, x_end, y_end, width=5, fill=color_palas, tags="palas", capstyle="round")
 
     def actualizar_datos_ui(self):
-        estado_display = self.ag._estado.upper()
-        if self.ag.timer_rearme > 0:
-            estado_display = f"REARME ({self.ag.timer_rearme}s)"
+        estado_display = self.ag.get_estado().upper()
+        timer = self.ag.get_timer_rearme()
+        
+        if timer > 0:
+            estado_display = f"REARME ({timer}s)"
         
         self.var_estado.set(estado_display)
         self.var_potencia.set(f"{self.ag.potencia_actual:.1f} kW")
         self.actualizar_animacion()
 
     def accion_marcha(self):
-        if self.ag.bloqueo_critico:
-            messagebox.showerror("Error", "Bloqueo Critico Activo.\nDebe corregir las fallas en STATUS antes de iniciar.")
-            return
-        self.ag.bloqueo_manual = False
-        self.ag._set_estado("pausado") # El controlador tomara el mando
+        res = self.ag.solicitar_marcha()
+        if res != "OK":
+             messagebox.showerror("Error", res)
     
     def accion_parada(self):
-        self.ag.bloqueo_manual = True # Bloqueo manual definitivo
-        self.ag._set_estado("stop")
+        self.ag.forzar_parada_manual()
 
     def abrir_detalles(self):
         VentanaDetalle(self.winfo_toplevel(), self.ag)
@@ -231,42 +245,46 @@ class DashboardApp(tk.Tk):
     def __init__(self):
         super().__init__()
         Estilos.configurar()
-        self.title("SCADA Eolico - Control Avanzado")
+        self.title("SCADA Eolico - Control Avanzado (SRP)")
         self.geometry("1200x800")
         self.configure(bg=COLOR_BG)
         
-        self.ags = []
-        # Iniciales
-        self.ags.append(AG_BajaPotencia(1))
-        self.ags.append(AG_AltaPotencia(2))
-        self.ags.append(AG_AltaPotencia(3))
+        # 1. OCULTAMOS LA VENTANA PRINCIPAL AL INICIO
+        self.withdraw()
+
+        # 2. INICIALIZAMOS EL CONTROLADOR
+        self.controller = SimuladorController()
         
         self.widgets_ag = []
+        
+        # 3. LANZAMOS LA VENTANA DE LOGIN
+        # Pasamos 'self.mostrar_dashboard' como la funcion a ejecutar si el login es correcto
+        LoginWindow(self, self.mostrar_dashboard)
+
+    def mostrar_dashboard(self):
+        """Este metodo solo se ejecuta si el usuario pone bien la clave"""
+        self.deiconify() # Volvemos a mostrar la ventana principal
         self._construir_interfaz()
         self._loop_simulacion()
 
     def _construir_interfaz(self):
-        # Header Superior
         frame_top = ttk.Frame(self, style="TFrame")
         frame_top.pack(fill="x", padx=20, pady=10)
         
         ttk.Label(frame_top, text="DASHBOARD PARQUE EOLICO", style="Title.TLabel").pack(side="left")
         
-        # Panel Total Potencia
         frame_total = ttk.Frame(frame_top, style="Card.TFrame", padding=10)
         frame_total.pack(side="right")
         ttk.Label(frame_total, text="POTENCIA TOTAL", style="Card.TLabel").pack()
         self.lbl_total_potencia = ttk.Label(frame_total, text="0.0 kW", style="BigNumber.TLabel", background=COLOR_PANEL)
         self.lbl_total_potencia.pack()
 
-        # Barra de Herramientas
         frame_toolbar = ttk.Frame(self, style="TFrame")
         frame_toolbar.pack(fill="x", padx=20, pady=5)
         
         ttk.Button(frame_toolbar, text="+ AGREGAR AEROGENERADOR", command=self.agregar_nuevo_aero).pack(side="left")
         ttk.Button(frame_toolbar, text="! PROVOCAR FALLA GRAVE (DEMO)", style="Danger.TButton", command=self.demo_falla).pack(side="right")
 
-        # Area Scrollable para Aerogeneradores
         canvas_scroll = tk.Canvas(self, bg=COLOR_BG, highlightthickness=0)
         scrollbar = ttk.Scrollbar(self, orient="horizontal", command=canvas_scroll.xview)
         self.frame_grid = ttk.Frame(canvas_scroll, style="TFrame")
@@ -281,62 +299,36 @@ class DashboardApp(tk.Tk):
         self.refrescar_grid()
 
     def refrescar_grid(self):
-        # Limpiar widgets anteriores
         for w in self.frame_grid.winfo_children():
             w.destroy()
         self.widgets_ag = []
         
-        # Crear nuevos widgets
-        for ag in self.ags:
+        for ag in self.controller.ags:
             w = WidgetAerogenerador(self.frame_grid, ag)
             w.pack(side="left", padx=10, pady=10, anchor="n")
             self.widgets_ag.append(w)
 
     def agregar_nuevo_aero(self):
-        # Dialogo simple para pedir tipo
         resp = simpledialog.askinteger("Nuevo Aero", "Ingrese potencia esperada (kW):\n< 1000 para Baja Potencia\n> 1000 para Alta Potencia", minvalue=100, maxvalue=5000)
-        
         if resp:
-            new_id = len(self.ags) + 1
-            if resp < 1000:
-                nuevo = AG_BajaPotencia(new_id)
-            else:
-                nuevo = AG_AltaPotencia(new_id)
-            
-            # El nuevo nace bloqueado manualmente por seguridad
-            nuevo.bloqueo_manual = True 
-            nuevo._set_estado("stop")
-            
-            self.ags.append(nuevo)
+            tipo = "BAJA" if resp < 1000 else "ALTA"
+            new_id = self.controller.agregar_aerogenerador(tipo)
             self.refrescar_grid()
             messagebox.showinfo("Exito", f"AG-{new_id} agregado correctamente.\nEstado inicial: STOP MANUAL.")
 
     def demo_falla(self):
-        # Inyecta falla critica en el AG-1 para probar el sistema
-        if not self.ags: return
-        target = self.ags[0]
-        falla = FallaMecanica("Rotor", "RUPTURA DE PALA DETECTADA", "Critica")
-        target.buje.fallas_activas.append(falla)
-        AlarmManager.registrar_alarma(falla)
-        messagebox.showwarning("Simulacion", f"Se ha forzado una ruptura en AG-{target.id_a}.\nEl sistema debe bloquearse.")
+        self.controller.provocar_falla_demo()
+        messagebox.showwarning("Simulacion", "Se ha forzado una ruptura en AG-1.\nEl sistema debe bloquearse.")
 
     def _loop_simulacion(self):
-        total_kw = 0
-        for ag in self.ags:
-            ag.actualizar()
-            ag.controlador()
-            total_kw += ag.potencia_actual
-        
-        # Actualizar UI Global
+        total_kw = self.controller.avanzar_ciclo_simulacion()
         self.lbl_total_potencia.config(text=f"{total_kw:.1f} kW")
         
-        # Actualizar Widgets Individuales
         for w in self.widgets_ag:
             w.actualizar_datos_ui()
             
         self.after(1000, self._loop_simulacion)
 
 if __name__ == "__main__":
-    # Login simplificado para esta version
     app = DashboardApp()
     app.mainloop()

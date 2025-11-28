@@ -22,12 +22,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="aerogenerador.py" />
+    <Compile Include="controlador.py" />
     <Compile Include="curvas.py" />
     <Compile Include="fallas.py" />
-    <Compile Include="gestores.py" />
+    <Compile Include="alarmas.py" />
     <Compile Include="interfaz.py" />
-    <Compile Include="partes.py" />
+    <Compile Include="componentes.py" />
     <Compile Include="sensores.py" />
+    <Compile Include="validaciones.py" />
     <Compile Include="viento.py" />
     <Compile Include="__init__.py" />
   </ItemGroup>
